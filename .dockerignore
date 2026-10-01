@@ -1,0 +1,17 @@
+/node_modules
+/.next
+/.turbo
+/dist
+/build
+*.log
+.env
+.env.local
+.env.production.local
+.env.development.local
+*.tsbuildinfo
+.next-env.d.ts
+.vercel
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
