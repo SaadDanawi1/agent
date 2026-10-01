@@ -1,0 +1,353 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?
+  avatarUrl     String?
+  settings      Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  projects      Project[]
+  agents        Agent[]
+  conversations Conversation[]
+  tasks         Task[]
+  skills        Skill[]
+  mcpServers    MCPServer[]
+  providers     Provider[]
+  memories      Memory[]
+  logs          Log[]
+
+  @@map("users")
+}
+
+model Project {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  path          String    @unique
+  settings      Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  userId        String
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agents        Agent[]
+  conversations Conversation[]
+  tasks         Task[]
+  files         ProjectFile[]
+  skills        ProjectSkill[]
+  mcpServers    ProjectMCP[]
+  memories      Memory[]
+
+  @@map("projects")
+}
+
+model ProjectFile {
+  id        String   @id @default(cuid())
+  projectId String
+  path      String
+  name      String
+  type      String
+  size      Int
+  content   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, path])
+  @@map("project_files")
+}
+
+model Agent {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  systemPrompt    String   @db.Text
+  model           String
+  provider        String
+  temperature     Float    @default(0.7)
+  maxTokens       Int      @default(4096)
+  contextWindow   Int      @default(128000)
+  reasoningLevel  String?
+  tools           String[]
+  skills          String[]
+  mcpServers      String[]
+  permissions     Json     @default("{}")
+  workingDir      String?
+  envVars         Json     @default("{}")
+  behavior        Json     @default("{}")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userId          String
+  projectId       String?
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  conversations   Conversation[]
+  tasks           Task[]
+  executions      Execution[]
+
+  @@map("agents")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  agentId   String?
+  projectId String?
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent     Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  messages  Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  role            String
+  content         String   @db.Text
+  toolCalls       Json?
+  toolResults     Json?
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now())
+  conversationId  String
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  status      String   @default("QUEUED")
+  priority    Int      @default(0)
+  input       Json     @default("{}")
+  output      Json?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  agentId     String?
+  projectId   String?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent       Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  executions  Execution[]
+
+  @@map("tasks")
+}
+
+model Execution {
+  id          String   @id @default(cuid())
+  status      String   @default("RUNNING")
+  input       Json     @default("{}")
+  output      Json?
+  error       String?
+  steps       Json     @default("[]")
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  agentId     String
+  taskId      String?
+
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  stepsRel    ExecutionStep[]
+
+  @@map("executions")
+}
+
+model ExecutionStep {
+  id            String   @id @default(cuid())
+  stepNumber    Int
+  type          String
+  description   String
+  toolName      String?
+  toolInput     Json?
+  toolOutput    Json?
+  skillName     String?
+  mcpServer     String?
+  status        String   @default("PENDING")
+  error         String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  executionId   String
+
+  execution     Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@map("execution_steps")
+}
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String
+  displayName String
+  description String   @db.Text
+  version     String   @default("1.0.0")
+  author      String?
+  category    String
+  tags        String[]
+  instructions String  @db.Text
+  rules       String[] @default([])
+  examples    Json     @default("[]")
+  requiredTools String[]
+  optionalTools String[] @default([])
+  dependencies String[] @default([])
+  metadata    Json     @default("{}")
+  isEnabled   Boolean  @default(true)
+  isBuiltIn   Boolean  @default(false)
+  path        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects    ProjectSkill[]
+
+  @@unique([userId, name])
+  @@map("skills")
+}
+
+model ProjectSkill {
+  id        String   @id @default(cuid())
+  projectId String
+  skillId   String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, skillId])
+  @@map("project_skills")
+}
+
+model MCPServer {
+  id              String   @id @default(cuid())
+  name            String
+  displayName     String
+  description     String?
+  command         String
+  args            String[] @default([])
+  env             Json     @default("{}")
+  transport       String   @default("stdio")
+  url             String?
+  auth            Json     @default("{}")
+  status          String   @default("DISCONNECTED")
+  tools           Json     @default("[]")
+  resources       Json     @default("[]")
+  prompts         Json     @default("[]")
+  lastConnected   DateTime?
+  error           String?
+  isEnabled       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userId          String
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects        ProjectMCP[]
+
+  @@unique([userId, name])
+  @@map("mcp_servers")
+}
+
+model ProjectMCP {
+  id          String   @id @default(cuid())
+  projectId   String
+  mcpServerId String
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mcpServer   MCPServer @relation(fields: [mcpServerId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, mcpServerId])
+  @@map("project_mcps")
+}
+
+model Provider {
+  id          String   @id @default(cuid())
+  name        String
+  displayName String
+  type        String
+  apiKey      String?
+  baseUrl     String?
+  models      Json     @default("[]")
+  defaultModel String?
+  isEnabled   Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@map("providers")
+}
+
+model Memory {
+  id          String   @id @default(cuid())
+  type        String
+  key         String
+  value       String   @db.Text
+  embedding   Bytes?
+  metadata    Json     @default("{}")
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  projectId   String?
+  agentId     String?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agent       Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@map("memories")
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  level     String
+  source    String
+  message   String   @db.Text
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+  userId    String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("logs")
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
