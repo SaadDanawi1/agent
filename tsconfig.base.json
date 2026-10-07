@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@delivery/*": ["packages/*/src"],
+      "@delivery/types": ["packages/types/src"],
+      "@delivery/config": ["packages/config/src"],
+      "@delivery/auth": ["packages/auth/src"],
+      "@delivery/api": ["packages/api/src"],
+      "@delivery/database": ["packages/database/src"],
+      "@delivery/i18n": ["packages/i18n/src"],
+      "@delivery/permissions": ["packages/permissions/src"],
+      "@delivery/role-navigation": ["packages/role-navigation/src"],
+      "@delivery/order-state-machine": ["packages/order-state-machine/src"],
+      "@delivery/utils": ["packages/utils/src"],
+      "@delivery/ui": ["packages/ui/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", ".expo", ".turbo"]
+}
